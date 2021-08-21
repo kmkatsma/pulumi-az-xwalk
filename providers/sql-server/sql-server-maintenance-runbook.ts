@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import * as azure from '@pulumi/azure';
+//import * as azure from '@pulumi/azure-native';
 
 //TODO!!!
 /*const exampleResourceGroup = new azure.core.ResourceGroup(

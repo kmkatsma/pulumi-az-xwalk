@@ -1,4 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
+import { IDeploymentContext } from '../../core/deployment-context';
 
 export enum AppRegistrationAuthorizationInputs {
   appId = 'appId',
@@ -7,15 +8,29 @@ export enum AppRegistrationAuthorizationInputs {
   authorizedScope = 'authorizedScope',
   secret = 'secret',
   appRegistrationName = 'appRegistrationName',
+  deploymentContext = 'deploymentContext',
 }
 
-export interface AppRegistrationAuthorizationArgs {
+export interface AppRegistrationAuthorizationProviderArgs {
   [AppRegistrationAuthorizationInputs.appId]: pulumi.Input<string>;
   [AppRegistrationAuthorizationInputs.type]: pulumi.Input<string>;
   [AppRegistrationAuthorizationInputs.authorizedApp]?: pulumi.Input<string>;
   [AppRegistrationAuthorizationInputs.authorizedScope]?: pulumi.Input<string>;
   [AppRegistrationAuthorizationInputs.secret]?: pulumi.Input<boolean>;
+  [AppRegistrationAuthorizationInputs.appRegistrationName]: pulumi.Input<
+    string
+  >;
+  deploymentContext: IDeploymentContext;
+}
+
+export interface AppRegistrationAuthorizationArgs {
+  [AppRegistrationAuthorizationInputs.appId]: string;
+  [AppRegistrationAuthorizationInputs.type]: string;
+  [AppRegistrationAuthorizationInputs.authorizedApp]?: string;
+  [AppRegistrationAuthorizationInputs.authorizedScope]?: string;
+  [AppRegistrationAuthorizationInputs.secret]?: boolean;
   [AppRegistrationAuthorizationInputs.appRegistrationName]: string;
+  deploymentContext: IDeploymentContext;
 }
 
 export enum AppRegistrationType {

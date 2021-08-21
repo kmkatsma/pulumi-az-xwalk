@@ -22,11 +22,11 @@ export class AppServiceAccess {
 
   async getToken(secret?: string, adminClientId?: string, tenantId?: string) {
     const APP_SECRET = AzSettingsUtil.getAZSetting(
-      AzureSettingsKeys.ADMIN_APP_SECRET,
+      AzureSettingsKeys.ARM_CLIENT_SECRET,
       secret
     );
-    const ADMIN_CLIENT_ID = AzSettingsUtil.getAZSetting(
-      AzureSettingsKeys.ADMIN_CLIENT_ID,
+    const ARM_CLIENT_ID = AzSettingsUtil.getAZSetting(
+      AzureSettingsKeys.ARM_CLIENT_ID,
       adminClientId
     );
     const TENANT_ID = AzSettingsUtil.getAZSetting(AzureSettingsKeys.TENANT_ID);
@@ -34,7 +34,7 @@ export class AppServiceAccess {
     //Get V1 Oauth token - requires the account to have contributor rights to actually
     const TOKEN_ENDPOINT = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/token`;
     const postData = {
-      client_id: ADMIN_CLIENT_ID,
+      client_id: ARM_CLIENT_ID,
       resource: 'https://management.azure.com',
       client_secret: APP_SECRET,
       grant_type: 'client_credentials',
@@ -63,7 +63,7 @@ export class AppServiceAccess {
     resourceGroup: string,
     subscriptionId: string,
     token?: string
-  ): Promise<AzureStringDictionary> {
+  ): Promise<AzureStringDictionary | undefined> {
     const URL = `https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${appName}/config/appsettings/list?api-version=2019-08-01`;
     if (!token) {
       token = await this.getToken();
@@ -88,7 +88,7 @@ export class AppServiceAccess {
     subscriptionId: string,
     appSettings: AzureStringDictionary,
     token?: string
-  ): Promise<AzureStringDictionary> {
+  ): Promise<AzureStringDictionary | undefined> {
     const URL = `https://management.azure.com/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${appName}/config/appsettings?api-version=2019-08-01`;
 
     if (!token) {

@@ -1,71 +1,53 @@
-import * as azure from '@pulumi/azure';
+import * as sql from '@pulumi/azure-native/sql';
+import * as resources from '@pulumi/azure-native/resources';
 import * as pulumi from '@pulumi/pulumi';
-import {
-  DeploymentContext,
-  DeploymentSetting,
-} from '../../core/deployment-context';
-import { SqlDatabaseState } from './sql-server.config';
+import * as azad from '@pulumi/azuread';
+import { IDeploymentContext } from '../../core/deployment-context';
+import { SqlDatabaseState, SqlServerBuilderState } from './sql-server.config';
 import { SqlServerUtil } from './sql-server.util';
 
 //TODO
-//ad integrated auth
-//   set admin
-//   remove default admin
-//   knex use ad auth
-//generate password dynamically
+//knex use ad auth
 //prod - geo-redundant backup
 //prod - threat detection
 //automation account + maintenance
+//https://erikej.github.io/sqlserver/2021/01/25/azure-sql-advanced-deployment-part3.html
 
 /*****************************************************
  * DATABASE
  * ***************************************************/
-export class SqlDatabaseCrosswalk {
-  static createDatabase(databaseName: string, rootName: string) {
-    const sharedRg = DeploymentContext.getCurrentResourceGroup();
-    const dbState = this.createDbState(databaseName, rootName);
-
-    const sqlServer = SqlServerUtil.createServer(
-      rootName,
-      dbState.sqlConfig,
-      sharedRg
+export class SqlServerBuilder {
+  static createServerWithDatabase(
+    databaseName: string,
+    resourceGroup: resources.ResourceGroup,
+    deploymentContext: IDeploymentContext,
+    adminSpId: string
+  ) {
+    const sqlServerState = SqlServerUtil.createServer(
+      deploymentContext,
+      resourceGroup,
+      adminSpId
     );
 
-    DeploymentContext.Settings[DeploymentSetting.DATABASE_LEVEL] = process.env
-      .DATABASE_LEVEL
-      ? process.env.DATABASE_LEVEL
-      : 'Basic';
-
-    const sqlDatabase = SqlServerUtil.createDatabase(
+    const sqlDatabaseState = SqlServerUtil.createDatabase(
       databaseName,
-      DeploymentContext.Settings[DeploymentSetting.DATABASE_LEVEL],
-      sqlServer,
-      sharedRg
+      sqlServerState.server,
+      resourceGroup,
+      deploymentContext
     );
 
     //Azure services override uses 0.0.0.0
-    const fwRule = new azure.sql.FirewallRule(
+    const fwRule = new sql.FirewallRule(
       'Azure Services',
       {
-        resourceGroupName: sharedRg.name,
-        serverName: sqlServer.name,
+        resourceGroupName: resourceGroup.name,
+        serverName: sqlServerState.server.name,
         startIpAddress: '0.0.0.0',
         endIpAddress: '0.0.0.0',
       },
-      { dependsOn: sqlServer }
+      { dependsOn: sqlServerState.server }
     );
 
-    return dbState;
-  }
-
-  static createDbState(databaseName: string, appRootName: string) {
-    const sqlConfig: SqlDatabaseState = {
-      name: databaseName,
-      sqlConfig: { username: 'kmkatsma', password: '$$password123' },
-      dbUrl: pulumi.interpolate`${pulumi.output(
-        SqlServerUtil.getServerName(appRootName.toUpperCase())
-      )}.database.windows.net`,
-    };
-    return sqlConfig;
+    return { sqlServerState, sqlDatabaseState } as SqlServerBuilderState;
   }
 }

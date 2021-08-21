@@ -1,66 +1,69 @@
-import { AppRegistrationsCrosswalk } from '../../providers/app-registration/app-registration.crosswalk';
-import {
-  AppServiceSize,
-  AppServiceTier,
-} from '../../providers/app-service/app-service.config';
-import { SqlDatabaseCrosswalk } from '../../providers/sql-server/sql-database.crosswalk';
-import { StorageAccountCrosswalk } from '../../providers/storage-account/storage-account.crosswalk';
-import { AppServiceCrosswalk } from '../../providers/app-service/app-services.crosswalk';
-import { AppInsightsUtil } from '../../providers/app-insights/app-insights.util';
-import { DeploymentContext } from '../../core/deployment-context';
+import * as pulumi from '@pulumi/pulumi';
+import { initializeContext } from '../../core/deployment-context';
 import { ResourceGroupUtil } from '../../providers/resource-group/resource-group.util';
+import { AppInsightsUtil } from '../../providers/app-insights/app-insights.util';
+import { AppServiceBuilder } from '../../providers/app-service/app-services.crosswalk';
+import { SqlServerBuilder } from '../../providers/sql-server/sql-database.crosswalk';
+import { StorageAccountBuilder } from '../../providers/storage-account/storage-account.crosswalk';
+import { AppRegistrationsBuilder } from '../../providers/app-registration/app-registration.crosswalk';
 
 //VARIABLES TO SET
-process.env.ARM_CLIENT_ID = '';
-process.env.ARM_CLIENT_SECRET = '';
-process.env.ARM_TENANT_ID = '';
-process.env.ARM_SUBSCRIPTION_ID = '';
-DeploymentContext.Namespace = 'OpenCaseWork';
-DeploymentContext.ProdDomainRoot = 'opencasework.com';
-DeploymentContext.initialize();
-const groupRootName = 'SHARED';
+const deploymentContext = initializeContext({ groupRootName: 'SHARED' });
+deploymentContext.Stack = pulumi.getStack();
 
-const sharedRg = ResourceGroupUtil.createResourceGroup(groupRootName);
+const sharedRg = ResourceGroupUtil.createResourceGroup(deploymentContext);
 export let resourceGroupName = sharedRg.name;
-DeploymentContext.setResourceGroup(sharedRg);
+deploymentContext.resourceGroup = sharedRg;
 
-const appInsights = AppInsightsUtil.create(groupRootName, sharedRg);
-const appServicePlan = AppServiceCrosswalk.createAppServicePlan(
-  groupRootName,
-  AppServiceSize.B1,
-  AppServiceTier.Basic
+const appInsights = AppInsightsUtil.create(deploymentContext, sharedRg);
+const appServicePlan = AppServiceBuilder.createAppServicePlan(
+  deploymentContext,
+  sharedRg
+  //AppServiceSize.B1,
+  //AppServiceTier.Basic
 );
 
 /**********************************************************
  * DATABASE
  **********************************************************/
-const dbState = SqlDatabaseCrosswalk.createDatabase('OCW', groupRootName);
+const dbState = SqlServerBuilder.createServerWithDatabase(
+  'OCW',
+  sharedRg,
+  deploymentContext
+);
 export const dbPassword = dbState.sqlConfig.password;
 export const dbUrl = dbState.dbUrl;
 
 /***********************************************************
  * Website SA
  ***********************************************************/
-const websiteSA = StorageAccountCrosswalk.createStaticSite(
+const websiteSA = StorageAccountBuilder.createStaticSite(
   'WEBSITE',
-  `https://www.${DeploymentContext.ProdDomainRoot}`.toLowerCase()
+  `https://www.${deploymentContext.ProdDomainRoot}`.toLowerCase(),
+  deploymentContext,
+  sharedRg
 );
+
+export const staticEndpoint = websiteSA.account.primaryEndpoints.web;
 
 /*************************************************************
  * ADMIN COMPONENTS
  *************************************************************/
 const adminRoot = 'Admin';
-const adminSAState = StorageAccountCrosswalk.createStaticSite(
+const adminSAState = StorageAccountBuilder.createStaticSite(
   adminRoot,
-  `https://${adminRoot}.${DeploymentContext.ProdDomainRoot}`.toLowerCase()
+  `https://${adminRoot}.${deploymentContext.ProdDomainRoot}`.toLowerCase(),
+  deploymentContext,
+  sharedRg
 );
 export const adminSAName = adminSAState.name;
 export const adminOrigin = adminSAState.url;
 
-const adminAppState = AppRegistrationsCrosswalk.createApps(
-  DeploymentContext.Namespace,
+const adminAppState = AppRegistrationsBuilder.createApps(
+  deploymentContext.Namespace,
   adminRoot,
-  adminOrigin
+  adminOrigin,
+  deploymentContext
 );
 export let adminUIAppClientId = adminAppState.uiAppClientId;
 export let adminUIAppId = adminAppState.uiAppId;
@@ -68,8 +71,10 @@ export let adminApiAppClientId = adminAppState.apiAppClientId;
 export let adminApiAppId = adminAppState.apiAppId;
 export let adminApiResourceScope = adminAppState.apiResourceScope;
 
-const adminAppServiceState = AppServiceCrosswalk.createAppService(
+const adminAppServiceState = AppServiceBuilder.createAppService(
   adminRoot,
+  deploymentContext,
+  sharedRg,
   appServicePlan,
   appInsights,
   dbState,
@@ -83,17 +88,20 @@ export let adminAPIName = adminAppServiceState.name;
  * OCW APP SA
  *************************************************************/
 const appRoot = 'App';
-const appSAState = StorageAccountCrosswalk.createStaticSite(
+const appSAState = StorageAccountBuilder.createStaticSite(
   appRoot,
-  `https://${appRoot}.${DeploymentContext.ProdDomainRoot}`
+  `https://${appRoot}.${deploymentContext.ProdDomainRoot}`,
+  deploymentContext,
+  sharedRg
 );
 export const appOrigin = appSAState.url;
 export const appSAName = appSAState.name;
 
-const appAppServiceState = AppRegistrationsCrosswalk.createApps(
-  DeploymentContext.Namespace,
+const appAppServiceState = AppRegistrationsBuilder.createApps(
+  deploymentContext.Namespace,
   appRoot,
-  appOrigin
+  appOrigin,
+  deploymentContext
 );
 export let appUIAppClientId = appAppServiceState.uiAppClientId;
 export let appUIAppId = appAppServiceState.uiAppId;
@@ -101,8 +109,10 @@ export let appApiAppClientId = appAppServiceState.apiAppClientId;
 export let appApiAppId = appAppServiceState.apiAppId;
 export let appApiResourceScope = appAppServiceState.apiResourceScope;
 
-const appAPIState = AppServiceCrosswalk.createAppService(
+const appAPIState = AppServiceBuilder.createAppService(
   appRoot,
+  deploymentContext,
+  sharedRg,
   appServicePlan,
   appInsights,
   dbState,
@@ -111,20 +121,3 @@ const appAPIState = AppServiceCrosswalk.createAppService(
 );
 export let appAPIUrl = appAPIState.url;
 export let appAPIName = appAPIState.name;
-
-/******************************************************
- * FUNCTIONS
- ******************************************************/
-/*const functionRg = ResourceGroupUtil.createResourceGroup('Functions');
-const functionRootName = 'SYSTEM';
-const functionSA = OcwStorageAccounts.createFunctionAppSA(functionRootName);
-OcwFunctionAppService.createFunctionApp(
-  functionRootName,
-  //appServicePlan,
-  appInsights,
-  functionSA,
-  dbState
-  // true
-);*/
-//pulumi up
-//pulumi refresh

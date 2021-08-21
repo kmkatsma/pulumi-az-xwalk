@@ -1,12 +1,18 @@
 import * as pulumi from '@pulumi/pulumi';
 import { AppRegistrationUtil } from './app-registration.util';
-import { AppRegistrationState } from './app-registration.config';
+import {
+  AppRegistrationState,
+  AppRegistrationType,
+} from './app-registration.config';
+import { IDeploymentContext } from '../../core/deployment-context';
+import { AppRegistrationAuthorizationSettings } from './app-registration-authorization.provider';
 
-export class AppRegistrationsCrosswalk {
+export class AppRegistrationsBuilder {
   static createApps(
     namespace: string,
     appRootName: string,
-    origin: pulumi.Output<string>
+    origin: pulumi.Output<string>,
+    deploymentContext: IDeploymentContext
   ) {
     const state = new AppRegistrationState();
 
@@ -15,20 +21,22 @@ export class AppRegistrationsCrosswalk {
       appRootName,
       namespace,
       origin,
-      state
+      state,
+      deploymentContext
     );
 
-    //UPDATE UI AUTH FIELDS
     AppRegistrationUtil.configureUIAppRegistrationAuthorization(
       appRootName,
       adminUIApp,
-      state
+      state,
+      deploymentContext
     );
 
     //API APP REG
     const adminAdApp = AppRegistrationUtil.createApiAppRegistration(
-      namespace,
       appRootName,
+      namespace,
+      deploymentContext,
       state
     );
 
@@ -36,7 +44,8 @@ export class AppRegistrationsCrosswalk {
     AppRegistrationUtil.configureApiAppRegistrationAuthorization(
       appRootName,
       adminAdApp,
-      state
+      state,
+      deploymentContext
     );
 
     return state;

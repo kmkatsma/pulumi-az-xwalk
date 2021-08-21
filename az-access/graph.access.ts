@@ -1,6 +1,6 @@
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
-import qs from 'qs';
+import * as qs from 'qs';
 import {
   AzAdInvitationResponse,
   AzAdInvitedUser,
@@ -28,11 +28,11 @@ export class GraphAccess {
 
   async getToken(secret?: string, adminClientId?: string, tenantId?: string) {
     const APP_SECRET = AzSettingsUtil.getAZSetting(
-      AzureSettingsKeys.ADMIN_APP_SECRET,
+      AzureSettingsKeys.ARM_CLIENT_SECRET,
       secret
     );
-    const ADMIN_CLIENT_ID = AzSettingsUtil.getAZSetting(
-      AzureSettingsKeys.ADMIN_CLIENT_ID,
+    const ARM_CLIENT_ID = AzSettingsUtil.getAZSetting(
+      AzureSettingsKeys.ARM_CLIENT_ID,
       adminClientId
     );
     const TENANT_ID = AzSettingsUtil.getAZSetting(
@@ -44,7 +44,7 @@ export class GraphAccess {
     const MS_GRAPH_SCOPE = 'https://graph.microsoft.com/.default';
 
     const postData = {
-      client_id: ADMIN_CLIENT_ID,
+      client_id: ARM_CLIENT_ID,
       scope: MS_GRAPH_SCOPE,
       client_secret: APP_SECRET,
       grant_type: 'client_credentials',
@@ -165,6 +165,25 @@ export class GraphAccess {
     return undefined;
   }
 
+  async createApplication(id: string, app: AzureAdApp, token?: string) {
+    const URL = `https://graph.microsoft.com/v1.0/applications/${id}`;
+    if (!token) {
+      token = await this.getToken();
+    }
+    try {
+      const response: any = await axios.post(
+        URL,
+        app,
+        this.getHeaderConfig(token)
+      );
+      console.log(response.data);
+      return response.data;
+    } catch (e) {
+      console.log(e);
+    }
+    return undefined;
+  }
+
   async updateApplication(id: string, app: AzureAdApp, token?: string) {
     const URL = `https://graph.microsoft.com/v1.0/applications/${id}`;
     if (!token) {
@@ -231,6 +250,39 @@ export class GraphAccess {
       );
       console.log(response.data);
       return response.data;
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+  }
+
+  //add group role member
+  /*POST https://graph.microsoft.com/v1.0/directoryRoles/{role-objectId}/members/$ref
+Content-type: application/json
+
+{
+  "@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/{user-id}"
+}*/
+  async addRoleMember(
+    roleId: string,
+    userId: string,
+    token?: string
+  ): Promise<void> {
+    const URL = `https://graph.microsoft.com/v1.0/directoryRoles/${roleId}/members/$ref`;
+    if (!token) {
+      token = await this.getToken();
+    }
+    try {
+      const body = {
+        ['@odata.id']: `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
+      };
+      const response: any = await axios.post(
+        URL,
+        body,
+        this.getHeaderConfig(token)
+      );
+      console.log(response.data);
+      //return response.data;
     } catch (e) {
       console.log(e);
       throw e;

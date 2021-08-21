@@ -1,20 +1,21 @@
 import * as azuread from '@pulumi/azuread';
 import * as pulumi from '@pulumi/pulumi';
-import { DeploymentContext } from '../../core/deployment-context';
+import { IDeploymentContext } from '../../core/deployment-context';
 import { AppRegistrationState } from './app-registration.config';
 import { AppRegistrationAuthorizationSettings } from './app-registration-authorization.provider';
 import { AppRegistrationType } from './app-registration.config';
 
 export class AppRegistrationUtil {
   static createApiAppRegistration(
-    namespace: string,
     appRootName: string,
+    namespace: string,
+    deploymentContext: IDeploymentContext,
     state: AppRegistrationState
   ) {
-    const consentDisplayName = `${namespace}.${appRootName}API`;
     const resourceName = `${appRootName}API`.toUpperCase();
+    const consentDisplayName = `${deploymentContext.groupRootName}${namespace}.${appRootName}API`;
     const consentDisplayDescription = `Provides ${namespace} Functionality`;
-    const appRegistrationName = `app-${DeploymentContext.Prefix}-${resourceName}-${DeploymentContext.Stack}`.toUpperCase();
+    const appRegistrationName = `app-${deploymentContext.Prefix}-${deploymentContext.groupRootName}-${resourceName}-${deploymentContext.Stack}`.toUpperCase();
 
     const appReg = new azuread.Application(appRegistrationName, {
       name: appRegistrationName,
@@ -54,9 +55,12 @@ export class AppRegistrationUtil {
   static configureApiAppRegistrationAuthorization(
     appRootName: string,
     apiApp: azuread.Application,
-    state: AppRegistrationState
+    state: AppRegistrationState,
+    deploymentContext: IDeploymentContext
   ) {
-    const apiRegistrationName = `${appRootName.toLowerCase()}ApiAppRegistration`;
+    const apiRegistrationName = `${
+      deploymentContext.groupRootName
+    }${appRootName.toLowerCase()}ApiAppRegistration`;
     const appAuthorizationSettings = new AppRegistrationAuthorizationSettings(
       apiRegistrationName,
       {
@@ -66,6 +70,7 @@ export class AppRegistrationUtil {
         authorizedScope: state.apiResourceScope,
         appRegistrationName: apiRegistrationName,
         secret: true,
+        deploymentContext,
       },
       { dependsOn: apiApp }
     );
@@ -75,15 +80,16 @@ export class AppRegistrationUtil {
     appRootName: string,
     namespace: string,
     origin: pulumi.Output<string>,
-    state: AppRegistrationState
+    state: AppRegistrationState,
+    deploymentContext: IDeploymentContext
   ) {
     const resourceName = `${appRootName}UI`.toUpperCase();
-    const consentDisplayName = `${namespace}.${appRootName}UI`;
+    const consentDisplayName = `${deploymentContext.groupRootName}${namespace}.${appRootName}UI`;
     const consentDisplayDescription = `Provides ${namespace} UI Functionality`;
-    const appRegistrationName = `app-${DeploymentContext.Prefix}-${resourceName}-${DeploymentContext.Stack}`.toUpperCase();
+    const appRegistrationName = `app-${deploymentContext.Prefix}-${deploymentContext.groupRootName}-${resourceName}-${deploymentContext.Stack}`.toUpperCase();
 
     const replyUrls = [origin];
-    if (DeploymentContext.Stack.toUpperCase() === 'DEV') {
+    if (deploymentContext.Stack.toUpperCase() === 'DEV') {
       replyUrls.push(pulumi.output('http://localhost:4200'));
     }
 
@@ -170,15 +176,19 @@ export class AppRegistrationUtil {
   static configureUIAppRegistrationAuthorization(
     appRootName: string,
     uiApp: azuread.Application,
-    state: AppRegistrationState
+    state: AppRegistrationState,
+    deploymentContext: IDeploymentContext
   ) {
-    const appUIRegistrationName = `${appRootName.toLowerCase()}UIAppRegistration`;
+    const appUIRegistrationName = `${
+      deploymentContext.groupRootName
+    }${appRootName.toLowerCase()}UIAppRegistration`;
     const adminUIAppRegiSettings = new AppRegistrationAuthorizationSettings(
       appUIRegistrationName,
       {
         appId: state.uiAppId,
         type: AppRegistrationType.Spa,
         appRegistrationName: appUIRegistrationName,
+        deploymentContext,
       },
       { dependsOn: uiApp }
     );

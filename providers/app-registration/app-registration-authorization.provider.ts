@@ -3,20 +3,30 @@ import { PulumiUtil } from '../../core/pulumi.util';
 import {
   AppRegistrationAuthorizationArgs,
   AppRegistrationAuthorizationInputs,
+  AppRegistrationAuthorizationProviderArgs,
   AppRegistrationType,
 } from './app-registration.config';
 import { AppRegistrationAuthorizationUtil } from './app-registration-authorization.util';
+import { initializeContext } from '../../core/deployment-context';
 
 class AppRegistrationAuthorizationProvider
   implements pulumi.dynamic.ResourceProvider {
   Input = AppRegistrationAuthorizationInputs;
 
   public async check(
-    olds: any,
-    news: any
+    olds: AppRegistrationAuthorizationArgs,
+    news: AppRegistrationAuthorizationArgs
   ): Promise<pulumi.dynamic.CheckResult> {
     const failures: any[] = [];
 
+    console.log(
+      'check olds',
+      olds[AppRegistrationAuthorizationInputs.appId],
+      olds[AppRegistrationAuthorizationInputs.appRegistrationName],
+      olds[AppRegistrationAuthorizationInputs.type],
+      olds[AppRegistrationAuthorizationInputs.authorizedApp],
+      olds[AppRegistrationAuthorizationInputs.authorizedScope]
+    );
     PulumiUtil.validateInput(this.Input.appId, news, failures);
     PulumiUtil.validateInput(this.Input.type, news, failures);
     if (news[this.Input.type] === AppRegistrationType.Api) {
@@ -28,10 +38,11 @@ class AppRegistrationAuthorizationProvider
 
   public async diff(
     id: pulumi.ID,
-    olds: any,
-    news: any
+    olds: AppRegistrationAuthorizationArgs,
+    news: AppRegistrationAuthorizationArgs
   ): Promise<pulumi.dynamic.DiffResult> {
     const replaces = [];
+    console.log('diff');
 
     if (!id) {
       replaces.push(this.Input.appRegistrationName);
@@ -46,15 +57,28 @@ class AppRegistrationAuthorizationProvider
         this.Input.authorizedScope,
       ])
     ) {
+      console.log('changes true');
+      return { changes: true };
+    }
+    console.log('changes');
+    if (olds[AppRegistrationAuthorizationInputs.appId]) {
       return { changes: true };
     }
     return { changes: false };
   }
 
-  public async create(inputs: any): Promise<pulumi.dynamic.CreateResult> {
-    console.log('execut create', inputs);
+  public async create(
+    inputs: AppRegistrationAuthorizationArgs
+  ): Promise<pulumi.dynamic.CreateResult> {
+    console.log('execute create', inputs[this.Input.appId]);
 
-    await AppRegistrationAuthorizationUtil.executeUpdate(inputs);
+    //const deploymentContext = initializeContext({ groupRootName: 'SHRD' });
+    //console.log('execute create context', deploymentContext);
+
+    await AppRegistrationAuthorizationUtil.executeUpdate(
+      inputs,
+      inputs.deploymentContext
+    );
 
     return {
       id: `${inputs[this.Input.appId]}`,
@@ -67,11 +91,16 @@ class AppRegistrationAuthorizationProvider
   async update(
     id: any,
     olds: any,
-    news: any
+    news: AppRegistrationAuthorizationArgs
   ): Promise<pulumi.dynamic.CreateResult> {
     console.log('execute update', id);
 
-    await AppRegistrationAuthorizationUtil.executeUpdate(news);
+    //const deploymentContext = initializeContext({ groupRootName: 'SHRD' });
+
+    await AppRegistrationAuthorizationUtil.executeUpdate(
+      news,
+      news.deploymentContext
+    );
 
     return {
       id: `${news[this.Input.appId]}`,
@@ -84,16 +113,9 @@ export class AppRegistrationAuthorizationSettings extends pulumi.dynamic
   .Resource {
   constructor(
     name: string,
-    args: AppRegistrationAuthorizationArgs,
+    args: AppRegistrationAuthorizationProviderArgs,
     opts?: pulumi.CustomResourceOptions
   ) {
-    super(
-      new AppRegistrationAuthorizationProvider(),
-      name,
-      {
-        ...args,
-      },
-      opts
-    );
+    super(new AppRegistrationAuthorizationProvider(), name, args, opts);
   }
 }

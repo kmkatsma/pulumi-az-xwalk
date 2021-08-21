@@ -12,13 +12,14 @@ export class PulumiUtil {
     if (!source.outs) {
       return true;
     }
-    //console.log('hasDiffs', source['inputs']['type']);
+    // console.log('hasDiffs', source['inputs']['type']);
     let hasDiff = false;
     fields.forEach((p) => {
       if (source.outs[p] !== target[p]) {
         hasDiff = true;
       }
     });
+
     return hasDiff;
   }
 }

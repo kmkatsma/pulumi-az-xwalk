@@ -1,7 +1,7 @@
 import { GraphUtil } from '../../az-access/graph.util';
 import { AzureAdApp } from '../../az-access/graph.models';
 import {
-  DeploymentContext,
+  IDeploymentContext,
   DeploymentSetting,
 } from '../../core/deployment-context';
 import {
@@ -13,11 +13,14 @@ import {
 export class AppRegistrationAuthorizationUtil {
   static Input = AppRegistrationAuthorizationInputs;
 
-  static async executeUpdate(inputs: any) {
+  static async executeUpdate(
+    inputs: any,
+    deploymentContext: IDeploymentContext
+  ) {
     const token = await GraphUtil.getToken(
-      DeploymentContext.Settings[DeploymentSetting.ADMIN_APP_SECRET],
-      DeploymentContext.Settings[DeploymentSetting.ADMIN_CLIENT_ID],
-      DeploymentContext.Settings[DeploymentSetting.TENANT_ID]
+      deploymentContext.Settings[DeploymentSetting.ARM_CLIENT_SECRET],
+      deploymentContext.Settings[DeploymentSetting.ARM_CLIENT_ID],
+      deploymentContext.Settings[DeploymentSetting.TENANT_ID]
     );
 
     const app: AzureAdApp = await GraphUtil.getApplication(
@@ -67,7 +70,7 @@ export class AppRegistrationAuthorizationUtil {
       };
     }
     if (existingApp.api) {
-      console.log('preauth', existingApp.api.preAuthorizedApplications);
+      console.log('preauth');
     }
   }
 
@@ -80,6 +83,8 @@ export class AppRegistrationAuthorizationUtil {
         enableAccessTokenIssuance: true,
         enableIdTokenIssuance: true,
       };
+      existingApp.spa = { redirectUris: [...existingApp.web.redirectUris] };
+      existingApp.web.redirectUris = [];
     }
     body.web = existingApp.web;
   }
@@ -109,7 +114,7 @@ export class AppRegistrationAuthorizationUtil {
     app: AzureAdApp,
     token: string
   ) {
-    console.log('try add secret', inputs[this.Input.secret], app.tags);
+    console.log('try add secret', inputs[this.Input.secret]);
     if (
       inputs[this.Input.secret] &&
       app.tags &&

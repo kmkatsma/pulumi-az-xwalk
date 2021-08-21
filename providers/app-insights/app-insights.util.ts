@@ -1,14 +1,22 @@
-import * as azure from '@pulumi/azure';
-import { DeploymentContext } from '../../core/deployment-context';
+import * as resources from '@pulumi/azure-native/resources';
+import * as insights from '@pulumi/azure-native/insights';
+import { IDeploymentContext } from '../../core/deployment-context';
 
 export class AppInsightsUtil {
-  static create(rootName: string, resourceGroup: azure.core.ResourceGroup) {
-    const name = `AI-${DeploymentContext.Prefix}-${rootName}`.toUpperCase();
-    const appInsights = new azure.appinsights.Insights(name, {
-      name: name,
-      resourceGroupName: resourceGroup.name,
+  static create(
+    deploymentContext: IDeploymentContext,
+    resourceGroup: resources.ResourceGroup
+  ) {
+    const name = `AI-${deploymentContext.Prefix}-${deploymentContext.groupRootName}`.toUpperCase();
 
+    const appInsights = new insights.Component(name, {
       applicationType: 'web',
+      flowType: 'Bluefield',
+      kind: 'web',
+      location: 'Central US',
+      requestSource: 'rest',
+      resourceGroupName: resourceGroup.name,
+      resourceName: name,
     });
 
     return appInsights;

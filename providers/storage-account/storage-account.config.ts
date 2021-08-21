@@ -1,13 +1,17 @@
 import * as pulumi from '@pulumi/pulumi';
-import * as azure from '@pulumi/azure';
+import * as storage from '@pulumi/azure-native/storage';
 
 export interface StorageOptions {
   index: number;
   isStaticWebsite: boolean;
-  pulumiArgs: azure.storage.AccountArgs;
+  resourceGroupName: '';
+  accountReplicationType: 'LRS';
+  accountTier: 'Standard';
+  accountKind: 'StorageV2';
+  isHnsEnabled?: boolean;
 }
 
-export const defaultArgs: azure.storage.AccountArgs = {
+export const defaultArgs = {
   resourceGroupName: '',
   accountReplicationType: 'LRS',
   accountTier: 'Standard',
@@ -17,7 +21,10 @@ export const defaultArgs: azure.storage.AccountArgs = {
 export const defaultSAOptions: StorageOptions = {
   index: 1,
   isStaticWebsite: false,
-  pulumiArgs: defaultArgs,
+  resourceGroupName: '',
+  accountReplicationType: 'LRS',
+  accountTier: 'Standard',
+  accountKind: 'StorageV2',
 };
 
 export enum StorageAccountType {
@@ -29,5 +36,5 @@ export enum StorageAccountType {
 export class StorageAccountState {
   name!: string;
   url!: pulumi.Output<string>;
-  account!: azure.storage.Account;
+  account!: storage.StorageAccount;
 }

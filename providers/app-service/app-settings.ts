@@ -1,6 +1,6 @@
-// Copyright 2016-2018, Pulumi Corporation.  All rights reserved.
+//TODO: app settings custom provider
 
-import * as pulumi from '@pulumi/pulumi';
+/*import * as pulumi from '@pulumi/pulumi';
 
 export interface AppSettingsArgs {
   appServiceName: pulumi.Input<string>;
@@ -97,4 +97,4 @@ export class AppServiceAppSettings extends pulumi.dynamic.Resource {
       opts
     );
   }
-}
+}*/

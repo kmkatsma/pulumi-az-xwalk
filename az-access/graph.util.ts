@@ -26,11 +26,11 @@ export class GraphUtil {
     tenantId?: string
   ) {
     const APP_SECRET = AzSettingsUtil.getAZSetting(
-      AzureSettingsKeys.ADMIN_APP_SECRET,
+      AzureSettingsKeys.ARM_CLIENT_SECRET,
       secret
     );
-    const ADMIN_CLIENT_ID = AzSettingsUtil.getAZSetting(
-      AzureSettingsKeys.ADMIN_CLIENT_ID,
+    const ARM_CLIENT_ID = AzSettingsUtil.getAZSetting(
+      AzureSettingsKeys.ARM_CLIENT_ID,
       adminClientId
     );
     const TENANT_ID = AzSettingsUtil.getAZSetting(
@@ -42,7 +42,7 @@ export class GraphUtil {
     const MS_GRAPH_SCOPE = 'https://graph.microsoft.com/.default';
 
     const postData = {
-      client_id: ADMIN_CLIENT_ID,
+      client_id: ARM_CLIENT_ID,
       scope: MS_GRAPH_SCOPE,
       client_secret: APP_SECRET,
       grant_type: 'client_credentials',
@@ -164,7 +164,8 @@ export class GraphUtil {
   }
 
   static async updateApplication(id: string, app: AzureAdApp, token?: string) {
-    const URL = `https://graph.microsoft.com/v1.0/applications/${id}`;
+    //const URL = `https://graph.microsoft.com/v1.0/applications/${id}`;
+    const URL = `https://graph.microsoft.com/beta/applications/${id}`;
     if (!token) {
       token = await this.getToken();
     }
@@ -230,6 +231,46 @@ export class GraphUtil {
       );
       console.log(response.data);
       return response.data;
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+  }
+
+  static async addRoleMember(
+    roleId: string,
+    userId: string,
+    token?: string,
+    options?: {
+      ARM_CLIENT_SECRET: string;
+      ARM_CLIENT_ID: string;
+      TENANT_ID: string;
+    }
+  ): Promise<void> {
+    //const URL = `https://graph.microsoft.com/v1.0/directoryRoles/${roleId}/members/$ref`;
+    const URL = `https://graph.microsoft.com/beta/roleManagement/directory/roleAssignments`;
+    console.log('url', URL);
+    if (!token) {
+      token = await this.getToken(
+        options?.ARM_CLIENT_SECRET,
+        options?.ARM_CLIENT_ID,
+        options?.TENANT_ID
+      );
+    }
+    try {
+      const body = {
+        //['@odata.id']: `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
+        principalId: userId,
+        roleDefinitionId: roleId,
+        directoryScopeId: '/', // Don't use "resourceScope" attribute in Azure AD role assignments. It will be deprecated soon.
+      };
+      const response: any = await axios.post(
+        URL,
+        body,
+        this.getHeaderConfig(token)
+      );
+      console.log(response.data);
+      //return response.data;
     } catch (e) {
       console.log(e);
       throw e;

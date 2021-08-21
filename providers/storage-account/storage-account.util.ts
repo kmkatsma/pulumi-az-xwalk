@@ -1,32 +1,36 @@
-import * as azure from '@pulumi/azure';
-import { ResourceGroup } from '@pulumi/azure/core';
-import { DeploymentContext } from '../../core/deployment-context';
+import * as storage from '@pulumi/azure-native/storage';
+import * as resources from '@pulumi/azure-native/resources';
+import { IDeploymentContext } from '../../core/deployment-context';
 import {
   defaultSAOptions,
+  StorageAccountState,
   StorageAccountType,
   StorageOptions,
 } from './storage-account.config';
 
 export class StorageAccountUtil {
-  static createName(rootName: string, type: string) {
-    return `${type}${DeploymentContext.Prefix}${rootName}${DeploymentContext.Stack}`.toLowerCase();
+  static createName(
+    rootName: string,
+    type: string,
+    deploymentContext: IDeploymentContext
+  ) {
+    return `${type}${deploymentContext.Prefix}${deploymentContext.groupRootName}${rootName}${deploymentContext.Stack}`.toLowerCase();
   }
 
   static createStaticWebsiteSA(
     rootName: string,
-    resourceGroup: azure.core.ResourceGroup
+    resourceGroup: resources.ResourceGroup,
+    deploymentContext: IDeploymentContext
   ) {
-    const saName = this.createName(rootName, 'sa');
+    const saName = this.createName(rootName, 'sa', deploymentContext);
 
-    const storageAccount = new azure.storage.Account(saName, {
-      name: saName,
+    const storageAccount = new storage.StorageAccount(saName, {
+      accountName: saName,
       resourceGroupName: resourceGroup.name,
-      accountReplicationType: 'LRS',
-      accountTier: 'Standard',
-      accountKind: 'StorageV2',
-      staticWebsite: {
-        indexDocument: 'index.html',
-        error404Document: 'index.html',
+      enableHttpsTrafficOnly: true,
+      kind: storage.Kind.StorageV2,
+      sku: {
+        name: storage.SkuName.Standard_LRS,
       },
     });
 
@@ -34,28 +38,72 @@ export class StorageAccountUtil {
     return storageAccount;
   }
 
+  static createStaticWebsite(
+    state: StorageAccountState,
+    resourceGroup: resources.ResourceGroup
+  ) {
+    const staticWebsite = new storage.StorageAccountStaticWebsite(state.name, {
+      accountName: state.account.name,
+      resourceGroupName: resourceGroup.name,
+      indexDocument: 'index.html',
+      error404Document: 'index.html',
+    });
+    return staticWebsite;
+  }
+
   static createStorageAccount(
     rootName: string,
-    resourceGroup: ResourceGroup,
+    resourceGroup: resources.ResourceGroup,
+    deploymentContext: IDeploymentContext,
     optionsOverride?: StorageOptions
   ) {
     if (!optionsOverride) {
       optionsOverride = defaultSAOptions;
     }
 
-    let options: azure.storage.AccountArgs = Object.assign(
-      {},
-      optionsOverride.pulumiArgs
+    let saName = this.createName(
+      rootName,
+      StorageAccountType.StorageAccount,
+      deploymentContext
     );
-    options = Object.assign(options, {
-      resourceGroupName: resourceGroup.name,
-    });
-
-    let saName = this.createName(rootName, StorageAccountType.StorageAccount);
-    if (options.isHnsEnabled) {
-      saName = this.createName(rootName, StorageAccountType.ADLS);
+    if (optionsOverride?.isHnsEnabled) {
+      saName = this.createName(
+        rootName,
+        StorageAccountType.ADLS,
+        deploymentContext
+      );
     }
-    options = Object.assign(options, { name: saName });
-    return new azure.storage.Account(saName, options);
+
+    const storageAccount = new storage.StorageAccount(saName, {
+      accountName: saName,
+      resourceGroupName: resourceGroup.name,
+      isHnsEnabled: optionsOverride?.isHnsEnabled ?? false,
+      enableHttpsTrafficOnly: true,
+      kind: storage.Kind.StorageV2,
+      sku: {
+        name: storage.SkuName.Standard_LRS,
+      },
+    });
+    return storageAccount;
+  }
+
+  static createFunctionAppSA(
+    functionAppRootName: string,
+    resourceGroup: resources.ResourceGroup,
+    deploymentContext: IDeploymentContext
+  ) {
+    const saState = new StorageAccountState();
+    const fullRootName = `${StorageAccountType.FunctionApp}${functionAppRootName}`;
+    saState.account = StorageAccountUtil.createStorageAccount(
+      fullRootName,
+      resourceGroup,
+      deploymentContext
+    );
+    saState.name = StorageAccountUtil.createName(
+      fullRootName,
+      StorageAccountType.StorageAccount,
+      deploymentContext
+    );
+    return saState;
   }
 }

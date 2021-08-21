@@ -1,42 +1,40 @@
 import * as pulumi from '@pulumi/pulumi';
-import { DeploymentContext } from '../../core/deployment-context';
+import * as resources from '@pulumi/azure-native/resources';
+import { IDeploymentContext } from '../../core/deployment-context';
 import { StorageAccountUtil } from './storage-account.util';
 import {
   StorageAccountState,
   StorageAccountType,
 } from './storage-account.config';
 
-export class StorageAccountCrosswalk {
-  static createStaticSite(rootName: string, prodUrl: string) {
+export class StorageAccountBuilder {
+  static createStaticSite(
+    rootName: string,
+    prodUrl: string,
+    deploymentContext: IDeploymentContext,
+    resourceGroup: resources.ResourceGroup
+  ) {
     const saRootName = `${rootName}UI`;
     const saState = new StorageAccountState();
 
     saState.account = StorageAccountUtil.createStaticWebsiteSA(
       saRootName,
-      DeploymentContext.getCurrentResourceGroup()
+      resourceGroup,
+      deploymentContext
     );
     saState.name = StorageAccountUtil.createName(
       saRootName,
-      StorageAccountType.StorageAccount
+      StorageAccountType.StorageAccount,
+      deploymentContext
     );
     saState.url = pulumi.interpolate`https://${saState.name}.z19.web.core.windows.net`;
-    if (DeploymentContext.Stack.toUpperCase() === 'PROD') {
+    if (deploymentContext.Stack.toUpperCase() === 'PROD') {
       saState.url = pulumi.output(prodUrl);
     }
-    return saState;
-  }
 
-  static createFunctionAppSA(functionAppRootName: string) {
-    const saState = new StorageAccountState();
-    const fullRootName = `${StorageAccountType.FunctionApp}${functionAppRootName}`;
-    saState.account = StorageAccountUtil.createStorageAccount(
-      fullRootName,
-      DeploymentContext.getCurrentResourceGroup()
-    );
-    saState.name = StorageAccountUtil.createName(
-      fullRootName,
-      StorageAccountType.StorageAccount
-    );
+    StorageAccountUtil.createStaticWebsite(saState, resourceGroup);
+    // Web endpoint to the website
+
     return saState;
   }
 }

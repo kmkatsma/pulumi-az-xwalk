@@ -39,6 +39,7 @@ export interface AzAdUser {
 export interface AzureAdApp {
   api?: AzureAdAPI;
   web?: AzureAdWeb;
+  spa?: AzureAdSpa;
   tags?: string[];
   oauth2AllowIdTokenImplicitFlow?: boolean;
   oauth2AllowImplicitFlow?: boolean;
@@ -52,6 +53,10 @@ export interface AzureAdAPI {
 
 export interface AzureAdWeb {
   implicitGrantSettings?: AzureAdWebImplicitGrantSettings;
+  redirectUris: string[];
+}
+
+export interface AzureAdSpa {
   redirectUris: string[];
 }
 

@@ -1,18 +1,21 @@
-import * as azure from '@pulumi/azure';
-import { DeploymentContext } from '../../core/deployment-context';
+import * as resources from '@pulumi/azure-native/resources';
+import { IDeploymentContext } from '../../core/deployment-context';
 
 export class ResourceGroupUtil {
-  static createResourceGroup(groupNameRoot: string, region?: string) {
+  static createResourceGroup(
+    deploymentContext: IDeploymentContext,
+    region?: string
+  ) {
     if (!region) {
-      region = DeploymentContext.DefaultRegion;
+      region = deploymentContext.DefaultRegion;
     }
-    const name = `RG-${DeploymentContext.Prefix}-${groupNameRoot}-${region}-${DeploymentContext.Stack}`.toUpperCase();
+    const name = `RG-${deploymentContext.Prefix}-${deploymentContext.groupRootName}-${region}-${deploymentContext.Stack}`.toUpperCase();
 
-    const resourceGroup = new azure.core.ResourceGroup(name, {
-      name: name,
+    const resourceGroup = new resources.ResourceGroup(name, {
+      resourceGroupName: name,
       location: region,
     });
-    DeploymentContext.setResourceGroup(resourceGroup);
+    //DeploymentContext.setResourceGroup(resourceGroup);
     return resourceGroup;
   }
 }
